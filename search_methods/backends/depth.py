@@ -37,6 +37,7 @@ def find_exit(data):
         if x[0] == 0:
             return wd - 2, index
 
+        
 
 def find_dir(data, l, c, block=2):
     right = 0
