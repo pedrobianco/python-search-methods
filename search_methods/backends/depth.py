@@ -1,141 +1,230 @@
-from PIL import Image
-
 from search_methods.base import SearchAbstract
+import numpy as np
+from PIL import Image
+import time
+import sys
+
+visited = []
+marked = []
+result = []
+num_of_states_visited = 0
 
 
 class Search(SearchAbstract):
+    NAME = 'Depth'
 
-    NAME = "Busca em Profundidade"
-
-    def __init__(self, image_array):
-        super(Search, self).__init__(image_array)
-        self.black_pixels = []
-
-    def get_problem_image_solution(self):
-        self.get_all_black_pixels()
-        pass
-
-    def get_search_response_payload(self):
-        self.get_all_black_pixels()
-        pass
-
-    def debug(self, data):
-        print("####### DEBUG #######")
-        print("{}".format(data))
-        print("####### END_DEBUG #######\n\n")
-
-    # Metodo para selecionar os pixels pretos.
-    def set_position_black_pixels(self, row, col, up, right, bottom, left):
-        # Dicionario contendo as posições da imagem.
-        black_pixel_position = {}
-        black_pixel_position['row'] = row
-        black_pixel_position['col'] = col
-        black_pixel_position['up'] = up
-        black_pixel_position['right'] = right
-        black_pixel_position['bottom'] = bottom
-        black_pixel_position['left'] = left
-        # Incrementar lista de pixels pretos
-        self.black_pixels.append(black_pixel_position)
-
-    # Metodo responsavel por retornar as definicoes conforme a direcao selecionada
-    def get_rule_direction(self, direction, row, col):
-        directions = {
-            'up': {
-                'row': row - 1,
-                'col': col
-            },
-            'right': {
-                'row': row,
-                'col': col + 1
-            },
-            'bottom': {
-                'row': row + 1,
-                'col': col
-            },
-            'left': {
-                'row': row,
-                'col': col - 1
-            },
-        }
-        return directions[direction]
-
-    # Metodo para verificar se ha caminho para percorrer
-    def is_way(self, direction, row, col):
-        # Verificar limites do array da imagem
-        if (row < len(self.image_array) - 1):
-            # Buscar caminho a ser seguido para direcao selecionada
-            result = self.get_rule_direction(direction, row, col)
-            # Retornar elemento encontrado a partir do caminho selecionado
-            return self.image_array[result['row']][result['col']] if result != None else None
-        return None
-    # Metodo responsavel por contar o numero de pixels acessiveis na direcao selecionada
-    def get_count_number_of_pixels(self, direction, row, col):
-        # Caminho atual
-        result = {'row': row, 'col': col}
-        # Implementar contador
-        count = 0
-        # Verificar se ha caminho disponivel para a proxima selecao selecionada
-        while (self.is_way(direction, result['row'], result['col'])[0] != None):
-            # Verificar se é uma linha valida
-            if (result['row'] < len(self.image_array) - 1):
-                # Continuar percorrer novo caminho conforme a direcao
-                result = self.get_rule_direction(direction, result['row'], result['col'])
-                # Incrementar contador
-                count = count + 1
-        # Retornar quantidade de pixeis
-        self.debug(count)
-        exit()
-        return count
-
-    # Metodo responsavel por percorrer todos os pixels pretos
-    def get_all_black_pixels(self):
-        # Percorrer cada linha do matriz da imagem
-        for rowIndex, row in enumerate(self.image_array):
-            # Percorrer cada coluna da linha
-            for colIndex, col in enumerate(row):
-                # Verificar se possui algum elemento 0 (zero) pixel preto
-                if [0] in col:
-                    up = 0
-                    right = 0
-                    bottom = 0
-                    left = 0
-                    # Verificar possiveis caminhos
-                    if (rowIndex > 0 and self.is_way('up', rowIndex, colIndex) != None):
-                        up += self.get_count_number_of_pixels('up', rowIndex, colIndex)
-                    if (rowIndex > 0 and self.is_way('right', rowIndex, colIndex) != None):
-                        right += self.get_count_number_of_pixels('right', rowIndex, colIndex)
-                    if (self.is_way('bottom', rowIndex, colIndex)[0] != None):
-                        bottom += self.get_count_number_of_pixels('bottom', rowIndex, colIndex)
-                    if (rowIndex > 0 and self.is_way('left', rowIndex, colIndex) != None):
-                        left += self.get_count_number_of_pixels('left', rowIndex, colIndex)
-                    # Inserir posicao dos pixeis
-                    self.set_position_black_pixels(rowIndex, colIndex, up, right, bottom, left)
-                    self.debug(self.black_pixels)
-
-    #metodo da busca em profundidade:
-
-    #algoriTMO:
-    #para  u ← 1  até  n  faça
-    #cor[u] ← branco
-    #cor[r] ← cinza
-    #P ← Cria-Pilha (r)
-    #enquanto  P  não estiver vazia faça
-    #u ← Copia-Topo-da-Pilha (P)
-    #se  Adj[u]  contém  v  tal que  cor[v] = branco
-    #então  cor[v] ← cinza
-    #Coloca-na-Pilha (v, P)
-    #senão  cor[u] ← preto
-    #Tira-da-Pilha (P)
-    #devolva  cor[1..n]
-
-    #implementacao:
+def load_image(infilename):
+    img = Image.open(infilename)
+    impixels = img.load()
+    data = np.asarray(img, dtype="int32")
+    return data
 
 
+def save_image(npdata, outfilename):
+    img = Image.fromarray(np.asarray(np.clip(npdata, 0, 255), dtype="uint8"), "RGBA")
+    img.save(outfilename)
 
 
-    def save_image(self):
-        img = Image.fromarray(self.image_array)
-        img.thumbnail((322,322))
-        img.show()
-        img.save('/response/depth/solutions.jpeg', 'JPEG')
+def find_entry(data):
+    for index, x in enumerate(data[0]):
+        if x[0] == 0:
+            return 0, index
 
+
+def find_exit(data):
+    wd, hd, sd = data.shape
+    for index, x in enumerate(data[-1]):
+        if x[0] == 0:
+            return wd - 2, index
+
+
+def find_dir(data, l, c, block=2):
+    right = 0
+    left = 0
+    top = 0
+    down = 0
+    wd, hd, sd = data.shape
+    # right
+    if c < wd - block and data[l][c + block][0] == 0:
+        right = block
+    # left
+    if c > block and (data[l][c - block][0] == 0 or data[l + 1][c - block][0] == 0):
+        left = block
+        # down
+    if l < hd - block and data[l + block][c][0] == 0:
+        down = block
+    # top
+    if l > block and (data[l - block][c][0] == 0 or data[l - block][c + 1][0] == 0):
+        top = block
+    return right, down, left, top
+
+
+class Graph_state:
+    def __init__(self, line, column, start=False):
+        self.line = line
+        self.column = column
+        self.start = start
+        self.children = []
+        self.parent = None
+        self.goal = False
+
+    def isgoal(self, objective):
+        if (objective[0] == self.line) and (objective[1] == self.column):
+            self.goal = True
+
+    def add(self, child):
+        child.parent = self
+        self.children.append(child)
+
+    def __str__(self):
+        repre = "(%d,%d)" % (self.line, self.column)
+        return repre
+
+
+def marcar(data, estado_pai):
+    estado_inicio = estado_pai
+    for estado in reversed(result):
+        if estado == estado_pai:
+            continue
+        estado_final = estado
+        colorir(data, estado_inicio, estado_final)
+        estado_inicio = estado_final
+
+
+def colorir(data, act_state, objective):
+    if act_state.column == objective.column:
+        distancia_estado = objective.line - act_state.line
+        if distancia_estado < 0:
+            for x in range(abs(distancia_estado)):
+                data[act_state.line - x][act_state.column] = [255, 0, 0, 255]
+        else:
+            for x in range(distancia_estado):
+                data[x + act_state.line][act_state.column] = [255, 0, 0, 255]
+    elif act_state.line == objective.line:
+        distancia_estado = objective.column - act_state.column
+        if distancia_estado < 0:
+            for y in range(abs(distancia_estado)):
+                data[act_state.line][act_state.column - y] = [255, 0, 0, 255]
+        else:
+            for y in range(distancia_estado):
+                data[act_state.line][y + act_state.column] = [255, 0, 0, 255]
+
+
+def find_next_intersection(data, act_state, vector, objective):
+    wd, hd, sd = data.shape
+    if vector[0] != 0:
+        # go right
+        for x in range(act_state.column + vector[0], wd, vector[0]):
+            right, down, left, top = find_dir(data, act_state.line, x)
+            if right == 0:  # found an edge
+                new_state = Graph_state(act_state.line, x)
+                new_state.isgoal(objective)
+                act_state.add(new_state)
+                find_next_intersection(data, new_state, (0, down, 0, top), objective)
+                break
+            if down != 0 or top != 0:
+                new_state = Graph_state(act_state.line, x)
+                new_state.isgoal(objective)
+                act_state.add(new_state)
+                find_next_intersection(data, new_state, (0, down, 0, top), objective)
+    if vector[1] != 0:
+        # go down
+        for y in range(act_state.line + vector[1], hd, vector[1]):
+            right, down, left, top = find_dir(data, y, act_state.column)
+            if down == 0:  # found an edge
+                new_state = Graph_state(y, act_state.column)
+                new_state.isgoal(objective)
+                act_state.add(new_state)
+                find_next_intersection(data, new_state, (right, 0, left, 0), objective)
+                break
+            if right != 0 or left != 0:
+                new_state = Graph_state(y, act_state.column)
+                new_state.isgoal(objective)
+                act_state.add(new_state)
+                find_next_intersection(data, new_state, (right, 0, left, 0), objective)
+    if vector[2] != 0:
+        # go left
+        for x in range(act_state.column - vector[2], 0, -vector[2]):
+            right, down, left, top = find_dir(data, act_state.line, x)
+            if left == 0:  # found an edge
+                new_state = Graph_state(act_state.line, x)
+                new_state.isgoal(objective)
+                act_state.add(new_state)
+                find_next_intersection(data, new_state, (0, down, 0, top), objective)
+                break
+            if down != 0 or top != 0:
+                new_state = Graph_state(act_state.line, x)
+                new_state.isgoal(objective)
+                act_state.add(new_state)
+                find_next_intersection(data, new_state, (0, down, 0, top), objective)
+    if vector[3] != 0:
+        # go up
+        for y in range(act_state.line - vector[3], 0, -vector[3]):
+            right, down, left, top = find_dir(data, y, act_state.column)
+            if top == 0:  # found an edge
+                new_state = Graph_state(y, act_state.column)
+                new_state.isgoal(objective)
+                act_state.add(new_state)
+                find_next_intersection(data, new_state, (right, 0, left, 0), objective)
+                break
+            if right != 0 or left != 0:
+                new_state = Graph_state(y, act_state.column)
+                new_state.isgoal(objective)
+                act_state.add(new_state)
+                find_next_intersection(data, new_state, (right, 0, left, 0), objective)
+
+
+def count_state(root_state, count):
+    for s in root_state.children:
+        count += 1
+        count += count_state(s, 0)
+    return count
+
+
+def search_widht(data, estado_pai):
+    global visited
+    global marked
+    global result
+    global num_of_states_visited
+
+    visited.append(estado_pai)
+    num_of_states_visited += 1
+
+    for estado_filho in estado_pai.children:
+        if not estado_filho in marked and not estado_filho in visited:
+            search_widht(data, estado_filho)
+
+    if estado_pai.goal:
+        data[estado_pai.line][estado_pai.column] = [255, 0, 0, 255]
+        result.append(estado_pai)
+
+    for estado_filho in estado_pai.children:
+
+        if estado_filho in result:
+            result.append(estado_pai)
+
+
+t0 = time.time()
+img_data = load_image('./source/image.png')
+
+sys.setrecursionlimit(10000)
+
+l_entrada, c_entrada = find_entry(img_data)
+lex, cex = find_exit(img_data)
+objective = (lex, cex)
+start_point = Graph_state(l_entrada, c_entrada, True)
+start_point.isgoal(objective)
+find_next_intersection(img_data, start_point, find_dir(img_data, l_entrada, c_entrada), objective)
+total_state = count_state(start_point, 1)
+
+search_widht(img_data, start_point)
+marcar(img_data, start_point)
+
+def get_search_response_payload(self):
+    self.print("Método de busca em profundidade! ")
+    self.print("Total de estados percorridos: %d" % total_state)
+    self.print("Numero de estados visitados: %d" % num_of_states_visited)
+    self.print("Tempo de processamento dos estados: %2.5f sec" % (time.time() - t0))
+
+def get_problem_image_solution(self):
+    self.save_image(img_data, './response/depth.png')
